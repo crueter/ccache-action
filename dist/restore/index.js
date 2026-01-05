@@ -67473,6 +67473,8 @@ function cacheDir(ccacheVariant) {
 
 
 
+const CCACHE_VERSION = "4.12.2";
+const SCCACHE_VERSION = "v0.12.0";
 const SELF_CI = external_process_namespaceObject.env["CCACHE_ACTION_CI"] === "true";
 function getPackageManagerError(error) {
     return (`Failed to install ccache via package manager: '${error}'. ` +
@@ -67584,9 +67586,23 @@ async function installCcacheLinux() {
     throw Error("Can't install ccache automatically under this platform, please install it yourself before using this action.");
 }
 async function installCcacheWindows() {
-    await installCcacheFromGitHub("4.9", "windows-x86_64", 
+    let packageName;
+    let sha256;
+    switch (external_process_namespaceObject.arch) {
+        case "x64":
+            packageName = "windows-x86_64";
+            sha256 = "bd73f405e3e80c7f0081ee75dbf9ee44dee64ecfbc3d4316e9a4ede4832f2e41";
+            break;
+        case "arm64":
+            packageName = "windows-aarch64";
+            sha256 = "9881a3acf40a5b22eff1c1650b335bd7cf56cf66a6c05cb7d0f53f19b43054f8";
+            break;
+        default:
+            throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
+    }
+    await installCcacheFromGitHub(packageName, 
     // sha256sum of ccache.exe
-    "cf18d274a54b49dcd77f6c289c26eeb89d180cb8329711e607478ed5ef74918c", 
+    sha256, 
     // TODO find a better place
     `${external_process_namespaceObject.env.USERPROFILE}\\.cargo\\bin`, "ccache.exe");
 }
@@ -67594,24 +67610,40 @@ async function installSccacheMac() {
     await execShell("brew install sccache");
 }
 async function installSccacheLinux() {
-    let packageName;
+    let packageArch;
     let sha256;
     switch (external_process_namespaceObject.arch) {
         case "x64":
-            packageName = "x86_64-unknown-linux-musl";
-            sha256 = "c205ba0911ce383e90263df8d83e445becccfff1bc0bb2e69ec57d1aa3090a4b";
+            packageArch = "x86_64";
+            sha256 = "e381a9675f971082a522907b8381c1054777ea60511043e4c67de5dfddff3029";
             break;
         case "arm64":
-            packageName = "aarch64-unknown-linux-musl";
-            sha256 = "8df5d557b50aa19c1c818b1a6465454a9dd807917af678f3feae11ee5c9dbe27";
+            packageArch = "aarch64";
+            sha256 = "2f9a8af7cea98e848f92e865a6d5062cfb8c91feeef17417cdd43276b4c7d8af";
             break;
         default:
             throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
     }
-    await installSccacheFromGitHub("v0.10.0", packageName, sha256, "/usr/local/bin/", "sccache");
+    let packageName = `${packageArch}-unknown-linux-musl`;
+    await installSccacheFromGitHub(packageName, sha256, "/usr/local/bin/", "sccache");
 }
 async function installSccacheWindows() {
-    await installSccacheFromGitHub("v0.10.0", "x86_64-pc-windows-msvc", "f3eff6014d973578498dbabcf1510fec2a624043d4035e15f2dc660fb35200d7", 
+    let packageArch;
+    let sha256;
+    switch (external_process_namespaceObject.arch) {
+        case "x64":
+            packageArch = "x86_64";
+            sha256 = "b0236d379a66b22f6bc9e944adb5b354163015315c3a2aaf7803ce2add758fcd";
+            break;
+        case "arm64":
+            packageArch = "aarch64";
+            sha256 = "0254597932dcc4fa85f67ac149be29941b96a19f8b1bb0bf71b24640641ab987";
+            break;
+        default:
+            throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
+    }
+    let packageName = `${packageArch}-pc-windows-msvc`;
+    await installSccacheFromGitHub(packageName, sha256, 
     // TODO find a better place
     `${external_process_namespaceObject.env.USERPROFILE}\\.cargo\\bin`, "sccache.exe");
 }
@@ -67621,17 +67653,17 @@ async function execShell(cmd) {
 async function execShellSudo(cmd) {
     await execShell("$(which sudo) " + cmd);
 }
-async function installCcacheFromGitHub(version, artifactName, binSha256, binDir, binName) {
-    const archiveName = `ccache-${version}-${artifactName}`;
-    const url = `https://github.com/ccache/ccache/releases/download/v${version}/${archiveName}.zip`;
+async function installCcacheFromGitHub(artifactName, binSha256, binDir, binName) {
+    const archiveName = `ccache-${CCACHE_VERSION}-${artifactName}`;
+    const url = `https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/${archiveName}.zip`;
     const binPath = external_path_default().join(binDir, binName);
     await downloadAndExtract(url, external_path_default().join(archiveName, binName), binPath);
     checkSha256Sum(binPath, binSha256);
     lib_core.addPath(binDir);
 }
-async function installSccacheFromGitHub(version, artifactName, binSha256, binDir, binName) {
-    const archiveName = `sccache-${version}-${artifactName}`;
-    const url = `https://github.com/mozilla/sccache/releases/download/${version}/${archiveName}.tar.gz`;
+async function installSccacheFromGitHub(artifactName, binSha256, binDir, binName) {
+    const archiveName = `sccache-${SCCACHE_VERSION}-${artifactName}`;
+    const url = `https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${archiveName}.tar.gz`;
     const binPath = external_path_default().join(binDir, binName);
     await downloadAndExtract(url, `*/${binName}`, binPath);
     checkSha256Sum(binPath, binSha256);
