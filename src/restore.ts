@@ -22,8 +22,6 @@ function getPackageManagerError(error: Error | unknown) : string {
   );
 }
 
-function getPackageInfoForArch(
-
 // based on https://cristianadam.eu/20200113/speeding-up-c-plus-plus-github-actions-using-ccache/
 
 async function restore(ccacheVariant : string) : Promise<void> {
