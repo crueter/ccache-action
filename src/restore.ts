@@ -232,7 +232,7 @@ async function installCcacheFromGitHub(artifactName : string, binSha256 : string
   core.addPath(binDir);
 }
 
-async function installSccacheFromGitHub(version : string, artifactName : string, binSha256 : string, binDir : string, binName : string) : Promise<void> {
+async function installSccacheFromGitHub(artifactName : string, binSha256 : string, binDir : string, binName : string) : Promise<void> {
   const archiveName = `sccache-${SCCACHE_VERSION}-${artifactName}`;
   const url = `https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${archiveName}.tar.gz`;
   const binPath = path.join(binDir, binName);
