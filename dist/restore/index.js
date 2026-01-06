@@ -67494,6 +67494,7 @@ async function restore(ccacheVariant) {
     const restoreKeys = inputs.restoreKeys.map(k => keyPrefix + k + (inputs.appendTimestamp ? "-" : ""));
     const paths = [cacheDir(ccacheVariant)];
     lib_core.saveState("primaryKey", primaryKey);
+    lib_core.info(`Keys: primary ${primaryKey}, secondary ${restoreKeys}, paths ${paths}`);
     const shouldRestore = lib_core.getBooleanInput("restore");
     if (!shouldRestore) {
         lib_core.info("Restore set to false, skip restoring cache.");

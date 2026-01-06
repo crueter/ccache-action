@@ -39,6 +39,8 @@ async function restore(ccacheVariant : string) : Promise<void> {
 
   core.saveState("primaryKey", primaryKey);
 
+  core.info(`Keys: primary ${primaryKey}, secondary ${restoreKeys}, paths ${paths}`)
+
   const shouldRestore = core.getBooleanInput("restore");
   if (!shouldRestore) {
     core.info("Restore set to false, skip restoring cache.");
@@ -178,7 +180,7 @@ async function installSccacheLinux() : Promise<void> {
   }
 
   let packageName: string = `${packageArch}-unknown-linux-musl`
-  
+
   await installSccacheFromGitHub(
     packageName,
     sha256,
