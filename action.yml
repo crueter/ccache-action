@@ -33,7 +33,7 @@ inputs:
     default: false
     required: false
   job-summary:
-    description: "Publish stats as part of the job summary. Set to the title of the job summary section, or to the 
+    description: "Publish stats as part of the job summary. Set to the title of the job summary section, or to the
      empty string to disable this feature. Requires CCache 4.10+"
     default: 'CCache Statistics'
   evict-old-files:
@@ -44,6 +44,10 @@ inputs:
   update-package-index:
     description: "Update package manager index before installing ccache. Enabling this might help when running
       ccache-action in a container or from `act`. Disabling this might speed up the action execution."
+    default: false
+    required: false
+  force-install:
+    description: "Attempt to install the ccache variant, even if it's already installed"
     default: false
     required: false
 runs:

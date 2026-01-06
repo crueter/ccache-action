@@ -67664,14 +67664,16 @@ function checkSha256Sum(path, expectedSha256) {
     }
 }
 async function runInner() {
+    const forceInstall = lib_core.getBooleanInput("force-install");
     const ccacheVariant = lib_core.getInput("variant");
     lib_core.saveState("startTimestamp", Date.now());
     lib_core.saveState("ccacheVariant", ccacheVariant);
     lib_core.saveState("evictOldFiles", lib_core.getInput("evict-old-files"));
+    lib_core.saveState("forceInstall", forceInstall);
     lib_core.saveState("shouldSave", lib_core.getBooleanInput("save"));
     lib_core.saveState("appendTimestamp", lib_core.getBooleanInput("append-timestamp"));
     let ccachePath = await io.which(ccacheVariant);
-    if (!ccachePath) {
+    if (forceInstall || !ccachePath) {
         lib_core.startGroup(`Install ${ccacheVariant}`);
         const installer = {
             ["ccache,linux"]: installCcacheLinux,
