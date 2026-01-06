@@ -36,7 +36,7 @@ async function restore(ccacheVariant : string) : Promise<void> {
   const primaryKey = inputs.primaryKey ? keyPrefix + (inputs.appendTimestamp ? inputs.primaryKey + "-" : inputs.primaryKey) : keyPrefix;
   const restoreKeys = inputs.restoreKeys.map(k => keyPrefix + k + (inputs.appendTimestamp ? "-" : ""));
   const paths = [cacheDir(ccacheVariant)];
-  
+
   core.saveState("primaryKey", primaryKey);
 
   const shouldRestore = core.getBooleanInput("restore");
@@ -60,7 +60,7 @@ async function restore(ccacheVariant : string) : Promise<void> {
 
 async function configure(ccacheVariant : string, platform : string) : Promise<void> {
   const maxSize = core.getInput('max-size');
-  
+
   if (ccacheVariant === "ccache") {
     await execShell(`ccache --set-config=cache_dir='${cacheDir(ccacheVariant)}'`);
     await execShell(`ccache --set-config=max_size='${maxSize}'`);
@@ -269,14 +269,17 @@ function checkSha256Sum (path : string, expectedSha256 : string) {
 }
 
 async function runInner() : Promise<void> {
+  const forceInstall = core.getBooleanInput("force-install");
   const ccacheVariant = core.getInput("variant");
+
   core.saveState("startTimestamp", Date.now());
   core.saveState("ccacheVariant", ccacheVariant);
   core.saveState("evictOldFiles", core.getInput("evict-old-files"));
+  core.saveState("forceInstall", forceInstall);
   core.saveState("shouldSave", core.getBooleanInput("save"));
   core.saveState("appendTimestamp", core.getBooleanInput("append-timestamp"));
   let ccachePath = await io.which(ccacheVariant);
-  if (!ccachePath) {
+  if (forceInstall || !ccachePath) {
     core.startGroup(`Install ${ccacheVariant}`);
     const installer = {
       ["ccache,linux"]: installCcacheLinux,
