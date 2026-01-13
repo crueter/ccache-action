@@ -67370,7 +67370,16 @@ __nccwpck_require__.r(__webpack_exports__);
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
-  "default": () => (/* binding */ src_restore)
+  ARCH: () => (/* binding */ ARCH),
+  DARWIN: () => (/* binding */ DARWIN),
+  LINUX: () => (/* binding */ LINUX),
+  PLATFORM: () => (/* binding */ PLATFORM),
+  Package: () => (/* binding */ Package),
+  VARIANT: () => (/* binding */ VARIANT),
+  WINDOWS: () => (/* binding */ WINDOWS),
+  "default": () => (/* binding */ src_restore),
+  selectPackage: () => (/* binding */ selectPackage),
+  selectVariant: () => (/* binding */ selectVariant)
 });
 
 // EXTERNAL MODULE: external "crypto"
@@ -67473,8 +67482,264 @@ function cacheDir(ccacheVariant) {
 
 
 
-const CCACHE_VERSION = "4.12.2";
-const SCCACHE_VERSION = "v0.12.0";
+var VARIANT;
+(function (VARIANT) {
+    VARIANT["SCCACHE"] = "sccache";
+    VARIANT["CCACHE"] = "ccache";
+})(VARIANT || (VARIANT = {}));
+var ARCH;
+(function (ARCH) {
+    ARCH["X86_64"] = "x86_64";
+    ARCH["AARCH64"] = "aarch64";
+})(ARCH || (ARCH = {}));
+var PLATFORM;
+(function (PLATFORM) {
+    PLATFORM["LINUX"] = "linux";
+    PLATFORM["WINDOWS"] = "windows";
+    PLATFORM["DARWIN"] = "darwin";
+})(PLATFORM || (PLATFORM = {}));
+class Package {
+    constructor(variant, arch, platform, sha256, version) {
+        this.variant = variant;
+        this.arch = arch;
+        this.platform = platform;
+        this.sha256 = sha256;
+        this.version = version;
+    }
+    /**
+     * Get the name of this package.
+     * @returns The name of the package used to determine the artifact name and extracted directory.
+     */
+    packageName() {
+        const v = this.version;
+        if (this.variant === VARIANT.CCACHE) {
+            // ccache darwin is a universal binary
+            if (this.platform === PLATFORM.DARWIN) {
+                return `ccache-${v}-darwin`;
+            }
+            return `ccache-${v}-${this.platform}-${this.arch}`;
+        }
+        let suffix;
+        switch (this.platform) {
+            case PLATFORM.LINUX:
+                suffix = "unknown-linux-musl";
+                break;
+            case PLATFORM.WINDOWS:
+                suffix = "pc-windows-msvc";
+                break;
+            case PLATFORM.DARWIN:
+                suffix = "apple-darwin";
+                break;
+        }
+        return `sccache-${v}-${this.arch}-${suffix}`;
+    }
+    /**
+     * Get the artifact name of the package.
+     * @returns The fully-qualified artifact name used to download the package.
+     */
+    downloadName() {
+        const base = this.packageName();
+        // sccache is just tar.gz
+        let extension = "tar.gz";
+        if (this.variant === VARIANT.CCACHE) {
+            switch (this.platform) {
+                case PLATFORM.LINUX:
+                    extension = "tar.xz";
+                    break;
+                case PLATFORM.WINDOWS:
+                    extension = "zip";
+                    break;
+                case PLATFORM.DARWIN:
+                    break;
+            }
+        }
+        return `${base}.${extension}`;
+    }
+    /**
+     * Get the URL to download this package's artifact
+     * @returns The fully-qualified URL to download this package's artifact.
+     */
+    downloadUrl() {
+        const artifact = this.downloadName();
+        const repo = this.variant === VARIANT.CCACHE
+            ? "ccache/ccache"
+            : "mozilla/sccache";
+        return `https://github.com/${repo}/releases/download/${this.version}/${artifact}`;
+    }
+    /**
+     * Install the package.
+     */
+    async installBinary() {
+        const isWindows = this.platform === PLATFORM.WINDOWS;
+        const binDir = this.platform === PLATFORM.WINDOWS
+            ? external_path_default().join(external_process_namespaceObject.env.USERPROFILE, ".cargo", "bin")
+            : "/usr/local/bin";
+        const binName = isWindows
+            ? `${this.variant}.exe`
+            : this.variant;
+        const binPath = external_path_default().join(binDir, binName);
+        await downloadAndExtract(this.downloadUrl(), `${this.packageName()}/${binName}`, binPath);
+        // TODO: ccache provides minisig and sccache provides sha256 downloads,
+        // maybe verify w/ that?
+        checkSha256Sum(binPath, this.sha256);
+        lib_core.addPath(binDir);
+        await execShell(`chmod +x '${binPath}'`);
+    }
+    /**
+     * Attempt to install this package from the package manager.
+     * @returns Whether or not it was successfully installed.
+     */
+    async installPackageManager() {
+        const shouldUpdate = lib_core.getBooleanInput("update-package-index");
+        const pkg = this.variant;
+        let updateCmd;
+        let installCmd;
+        let needSudo = false;
+        // some distros don't have sccache
+        let hasSccache = true;
+        // TODO is the fallback to basic install always a good idea?
+        switch (this.platform) {
+            case PLATFORM.DARWIN:
+                updateCmd = "brew update";
+                installCmd = "brew install";
+                break;
+            case PLATFORM.LINUX:
+                if (await io.which("apt-get")) {
+                    updateCmd = "apt-get update";
+                    installCmd = "apt-get install -y";
+                    hasSccache = false;
+                    needSudo = true;
+                }
+                else if (await io.which("apk")) {
+                    updateCmd = "apk update";
+                    installCmd = "apk add";
+                    hasSccache = false;
+                }
+                else if (await io.which("dnf")) {
+                    updateCmd = "dnf check-update";
+                    installCmd = "dnf install -y";
+                    // ccache needs epel repo
+                    await execShell(`${installCmd} epel-release`);
+                }
+                else if (await io.which("pacman")) {
+                    // arch frequently upgrades glibc and such
+                    // partial updates will break things if you don't pass -u!
+                    updateCmd = "pacman -Syu";
+                    installCmd = "pacman -S";
+                }
+                break;
+            case PLATFORM.WINDOWS:
+                // Windows doesn't have a good package manager
+                // Well, it has chocolatey, but it doesn't work right with ARM
+                return false;
+        }
+        if (pkg === VARIANT.SCCACHE && !hasSccache)
+            return false;
+        let execFunc = needSudo ? execShellSudo : execShell;
+        try {
+            if (shouldUpdate)
+                execFunc(`${updateCmd}`);
+            execFunc(`${installCmd} ${pkg}`);
+        }
+        catch (error) {
+            throw new Error(getPackageManagerError(error));
+        }
+        return Boolean(await io.which(pkg));
+    }
+    async install() {
+        if (!await this.installPackageManager()) {
+            await this.installBinary();
+        }
+        if (!io.which(this.variant)) {
+            throw new Error(`Unable to install ${this.variant}. Check prior logs and file a bug report.`);
+        }
+    }
+}
+// platform/stuff helpers //
+function detectPlatform() {
+    switch (external_process_namespaceObject.platform) {
+        case "linux":
+            return PLATFORM.LINUX;
+        case "win32":
+            return PLATFORM.WINDOWS;
+        case "darwin":
+            return PLATFORM.DARWIN;
+        default:
+            throw new Error(`Unsupported platform: ${external_process_namespaceObject.platform}`);
+    }
+}
+function detectArchKey() {
+    switch (external_process_namespaceObject.arch) {
+        case "x64":
+            return "x64";
+        case "arm64":
+            return "aarch64";
+        default:
+            throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
+    }
+}
+function selectPackage(variant) {
+    const platform = detectPlatform();
+    const archKey = detectArchKey();
+    let entry;
+    switch (platform) {
+        case PLATFORM.LINUX:
+            entry = LINUX[archKey];
+            break;
+        case PLATFORM.WINDOWS:
+            entry = WINDOWS[archKey];
+            break;
+        case PLATFORM.DARWIN:
+            entry = DARWIN[archKey];
+            break;
+    }
+    if (entry)
+        return entry[variant];
+    else
+        throw new Error(`Unsupported package combination: platform=${platform}, arch=${archKey}, variant=${variant}`);
+}
+function selectVariant(variant) {
+    switch (variant) {
+        case "sccache": return VARIANT.SCCACHE;
+        case "ccache": return VARIANT.CCACHE;
+        default: throw new Error(`Unsupported ccache variant ${variant}.`);
+    }
+}
+// predefined packages //
+// TODO: can this be deduped? automated? generated?
+// Linux //
+const LINUX = {
+    x64: {
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.LINUX, "sha256", "v4.12.2"),
+        sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.LINUX, "e381a9675f971082a522907b8381c1054777ea60511043e4c67de5dfddff3029", "v0.12.0"),
+    },
+    aarch64: {
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.LINUX, "sha256", "v4.12.2"),
+        sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.LINUX, "2f9a8af7cea98e848f92e865a6d5062cfb8c91feeef17417cdd43276b4c7d8af", "v0.12.0"),
+    },
+};
+// Windows //
+const WINDOWS = {
+    x64: {
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.WINDOWS, "bd73f405e3e80c7f0081ee75dbf9ee44dee64ecfbc3d4316e9a4ede4832f2e41", "v4.12.2"),
+        sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.WINDOWS, "b0236d379a66b22f6bc9e944adb5b354163015315c3a2aaf7803ce2add758fcd", "v0.12.0"),
+    },
+    aarch64: {
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.WINDOWS, "9881a3acf40a5b22eff1c1650b335bd7cf56cf66a6c05cb7d0f53f19b43054f8", "v4.12.2"),
+        sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.WINDOWS, "0254597932dcc4fa85f67ac149be29941b96a19f8b1bb0bf71b24640641ab987", "v0.12.0"),
+    },
+};
+// macOS //
+const DARWIN = {
+    x64: {
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.DARWIN, "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047", "v4.12.2"),
+        sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.DARWIN, "dc4b8d99d1aab20d1a2274642444c0bdc3e4a5fb4c6b63c58ff134eea81ccc15", "v0.12.0"),
+    },
+    aarch64: {
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.DARWIN, "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047", "v4.12.2"),
+        sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.DARWIN, "0a7e14583e7e136c5b2253990e7ce66668c453a845c710b18873e7205ed8c098", "v0.12.0"),
+    },
+};
 const SELF_CI = external_process_namespaceObject.env["CCACHE_ACTION_CI"] === "true";
 function getPackageManagerError(error) {
     return (`Failed to install ccache via package manager: '${error}'. ` +
@@ -67542,133 +67807,15 @@ async function configure(ccacheVariant, platform) {
         await execShell(`env ${options} sccache --start-server`);
     }
 }
-async function installCcacheMac() {
-    if (lib_core.getBooleanInput("update-package-index")) {
-        await execShell("brew update");
-    }
-    try {
-        await execShell("brew install ccache");
-    }
-    catch (error) {
-        throw new Error(getPackageManagerError(error));
-    }
-}
-async function installCcacheLinux() {
-    const shouldUpdate = lib_core.getBooleanInput("update-package-index");
-    try {
-        if (await io.which("apt-get")) {
-            if (shouldUpdate) {
-                await execShellSudo("apt-get update");
-            }
-            await execShellSudo("apt-get install -y ccache");
-            return;
-        }
-        else if (await io.which("apk")) {
-            if (shouldUpdate) {
-                await execShell("apk update");
-            }
-            await execShell("apk add ccache");
-            return;
-        }
-        else if (await io.which("dnf")) {
-            if (shouldUpdate) {
-                await execShell("dnf check-update");
-            }
-            // ccache is part of EPEL repo.
-            await execShell("dnf install -y epel-release");
-            await execShell("dnf install -y ccache");
-            return;
-        }
-    }
-    catch (error) {
-        throw new Error(getPackageManagerError(error));
-    }
-    throw Error("Can't install ccache automatically under this platform, please install it yourself before using this action.");
-}
-async function installCcacheWindows() {
-    let packageName;
-    let sha256;
-    switch (external_process_namespaceObject.arch) {
-        case "x64":
-            packageName = "windows-x86_64";
-            sha256 = "bd73f405e3e80c7f0081ee75dbf9ee44dee64ecfbc3d4316e9a4ede4832f2e41";
-            break;
-        case "arm64":
-            packageName = "windows-aarch64";
-            sha256 = "9881a3acf40a5b22eff1c1650b335bd7cf56cf66a6c05cb7d0f53f19b43054f8";
-            break;
-        default:
-            throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
-    }
-    await installCcacheFromGitHub(packageName, 
-    // sha256sum of ccache.exe
-    sha256, 
-    // TODO find a better place
-    `${external_process_namespaceObject.env.USERPROFILE}\\.cargo\\bin`, "ccache.exe");
-}
-async function installSccacheMac() {
-    await execShell("brew install sccache");
-}
-async function installSccacheLinux() {
-    let packageArch;
-    let sha256;
-    switch (external_process_namespaceObject.arch) {
-        case "x64":
-            packageArch = "x86_64";
-            sha256 = "e381a9675f971082a522907b8381c1054777ea60511043e4c67de5dfddff3029";
-            break;
-        case "arm64":
-            packageArch = "aarch64";
-            sha256 = "2f9a8af7cea98e848f92e865a6d5062cfb8c91feeef17417cdd43276b4c7d8af";
-            break;
-        default:
-            throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
-    }
-    let packageName = `${packageArch}-unknown-linux-musl`;
-    await installSccacheFromGitHub(packageName, sha256, "/usr/local/bin/", "sccache");
-}
-async function installSccacheWindows() {
-    let packageArch;
-    let sha256;
-    switch (external_process_namespaceObject.arch) {
-        case "x64":
-            packageArch = "x86_64";
-            sha256 = "b0236d379a66b22f6bc9e944adb5b354163015315c3a2aaf7803ce2add758fcd";
-            break;
-        case "arm64":
-            packageArch = "aarch64";
-            sha256 = "0254597932dcc4fa85f67ac149be29941b96a19f8b1bb0bf71b24640641ab987";
-            break;
-        default:
-            throw new Error(`Unsupported architecture: ${external_process_namespaceObject.arch}`);
-    }
-    let packageName = `${packageArch}-pc-windows-msvc`;
-    await installSccacheFromGitHub(packageName, sha256, 
-    // TODO find a better place
-    `${external_process_namespaceObject.env.USERPROFILE}\\.cargo\\bin`, "sccache.exe");
-}
 async function execShell(cmd) {
     await exec.exec("sh", ["-xc", cmd]);
 }
 async function execShellSudo(cmd) {
-    await execShell("$(which sudo) " + cmd);
-}
-async function installCcacheFromGitHub(artifactName, binSha256, binDir, binName) {
-    const archiveName = `ccache-${CCACHE_VERSION}-${artifactName}`;
-    const url = `https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/${archiveName}.zip`;
-    const binPath = external_path_default().join(binDir, binName);
-    await downloadAndExtract(url, external_path_default().join(archiveName, binName), binPath);
-    checkSha256Sum(binPath, binSha256);
-    lib_core.addPath(binDir);
-}
-async function installSccacheFromGitHub(artifactName, binSha256, binDir, binName) {
-    const archiveName = `sccache-${SCCACHE_VERSION}-${artifactName}`;
-    const url = `https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${archiveName}.tar.gz`;
-    const binPath = external_path_default().join(binDir, binName);
-    await downloadAndExtract(url, `*/${binName}`, binPath);
-    checkSha256Sum(binPath, binSha256);
-    lib_core.addPath(binDir);
-    await execShell(`chmod +x '${binPath}'`);
+    // if no sudo is available we are probably in a docker container, and don't need it anyways
+    if (await io.which("sudo"))
+        await execShell("$(which sudo) " + cmd);
+    else
+        await execShell(cmd);
 }
 async function downloadAndExtract(url, srcFile, dstFile) {
     const dstDir = external_path_default().dirname(dstFile);
@@ -67703,20 +67850,12 @@ async function runInner() {
     lib_core.saveState("shouldSave", lib_core.getBooleanInput("save"));
     lib_core.saveState("appendTimestamp", lib_core.getBooleanInput("append-timestamp"));
     let ccachePath = await io.which(ccacheVariant);
+    // TODO: force install/methods/detect/etc
     if (!ccachePath) {
         lib_core.startGroup(`Install ${ccacheVariant}`);
-        const installer = {
-            ["ccache,linux"]: installCcacheLinux,
-            ["ccache,darwin"]: installCcacheMac,
-            ["ccache,win32"]: installCcacheWindows,
-            ["sccache,linux"]: installSccacheLinux,
-            ["sccache,darwin"]: installSccacheMac,
-            ["sccache,win32"]: installSccacheWindows,
-        }[[ccacheVariant, external_process_namespaceObject.platform].join()];
-        if (!installer) {
-            throw Error(`Unsupported platform: ${external_process_namespaceObject.platform}`);
-        }
-        await installer();
+        const variant = selectVariant(ccacheVariant);
+        const pkg = selectPackage(variant);
+        await pkg.install();
         lib_core.info(await io.which(ccacheVariant + ".exe"));
         ccachePath = await io.which(ccacheVariant, true);
         lib_core.endGroup();
