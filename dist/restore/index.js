@@ -67594,7 +67594,7 @@ class Package {
         else {
             // windows is a little special :)
             if (this.platform === PLATFORM.WINDOWS) {
-                const winName = dlName.replace('\\', '/');
+                const winName = dlName.replaceAll('\\', '/');
                 await execShell(`tar xf "$(cygpath -u ${winName})" -O '${srcFile}' > '${dstFile}'`);
             }
             else
