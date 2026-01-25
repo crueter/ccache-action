@@ -555,6 +555,8 @@ async function runInner(): Promise<void> {
     const variant = selectVariant(ccacheVariant)
     const pkg = selectPackage(variant)
     const method = selectMethod(installMethod);
+
+    core.info(`Installing with method ${method}`)
     await pkg.install(method);
 
     core.info(await io.which(ccacheVariant + ".exe"));

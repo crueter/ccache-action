@@ -67898,6 +67898,7 @@ async function runInner() {
         const variant = selectVariant(ccacheVariant);
         const pkg = selectPackage(variant);
         const method = selectMethod(installMethod);
+        lib_core.info(`Installing with method ${method}`);
         await pkg.install(method);
         lib_core.info(await io.which(ccacheVariant + ".exe"));
         ccachePath = await io.which(ccacheVariant, true);
