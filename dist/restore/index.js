@@ -67568,6 +67568,24 @@ class Package {
         const version = this.variant === VARIANT.CCACHE ? `v${this.version}` : `${this.version}`;
         return `https://github.com/${repo}/releases/download/${version}/${artifact}`;
     }
+    async downloadAndExtract(srcFile, dstFile) {
+        const dstDir = external_path_default().dirname(dstFile);
+        if (!external_fs_default().existsSync(dstDir)) {
+            external_fs_default().mkdirSync(dstDir, { recursive: true });
+        }
+        const url = this.downloadUrl();
+        const tmp = external_fs_default().mkdtempSync(external_path_default().join(external_os_default().tmpdir(), ""));
+        const dlName = external_path_default().join(tmp, this.downloadName());
+        await execShell(`curl -L '${url}' -o '${dlName}'`);
+        if (url.endsWith(".zip")) {
+            await execShell(`unzip '${dlName}' -d '${tmp}'`);
+            external_fs_default().copyFileSync(external_path_default().join(tmp, srcFile), dstFile);
+            external_fs_default().rmSync(tmp, { recursive: true });
+        }
+        else {
+            await execShell(`tar xzf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
+        }
+    }
     /**
      * Install the package.
      */
@@ -67580,7 +67598,7 @@ class Package {
             ? `${this.variant}.exe`
             : this.variant;
         const binPath = external_path_default().join(binDir, binName);
-        await downloadAndExtract(this.downloadUrl(), `${this.packageName()}/${binName}`, binPath);
+        await this.downloadAndExtract(`${this.packageName()}/${binName}`, binPath);
         // TODO: ccache provides minisig and sccache provides sha256 downloads,
         // maybe verify w/ that?
         checkSha256Sum(binPath, this.sha256);
@@ -67640,8 +67658,8 @@ class Package {
         let execFunc = needSudo ? execShellSudo : execShell;
         try {
             if (shouldUpdate)
-                execFunc(`${updateCmd}`);
-            execFunc(`${installCmd} ${pkg}`);
+                await execFunc(`${updateCmd}`);
+            await execFunc(`${installCmd} ${pkg}`);
         }
         catch (error) {
             throw new Error(getPackageManagerError(error));
@@ -67818,23 +67836,6 @@ async function execShellSudo(cmd) {
         await execShell("$(which sudo) " + cmd);
     else
         await execShell(cmd);
-}
-async function downloadAndExtract(url, srcFile, dstFile) {
-    const dstDir = external_path_default().dirname(dstFile);
-    if (!external_fs_default().existsSync(dstDir)) {
-        external_fs_default().mkdirSync(dstDir, { recursive: true });
-    }
-    if (url.endsWith(".zip")) {
-        const tmp = external_fs_default().mkdtempSync(external_path_default().join(external_os_default().tmpdir(), ""));
-        const zipName = external_path_default().join(tmp, "dl.zip");
-        await execShell(`curl -L '${url}' -o '${zipName}'`);
-        await execShell(`unzip '${zipName}' -d '${tmp}'`);
-        external_fs_default().copyFileSync(external_path_default().join(tmp, srcFile), dstFile);
-        external_fs_default().rmSync(tmp, { recursive: true });
-    }
-    else {
-        await execShell(`curl -L '${url}' | tar xzf - -O --wildcards '${srcFile}' > '${dstFile}'`);
-    }
 }
 function checkSha256Sum(path, expectedSha256) {
     const h = external_crypto_default().createHash("sha256");

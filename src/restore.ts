@@ -109,6 +109,27 @@ export class Package {
     return `https://github.com/${repo}/releases/download/${version}/${artifact}`;
   }
 
+  async downloadAndExtract(srcFile: string, dstFile: string) {
+    const dstDir = path.dirname(dstFile);
+    if (!fs.existsSync(dstDir)) {
+      fs.mkdirSync(dstDir, { recursive: true });
+    }
+
+    const url = this.downloadUrl();
+
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), ""));
+    const dlName = path.join(tmp, this.downloadName())
+    await execShell(`curl -L '${url}' -o '${dlName}'`);
+
+    if (url.endsWith(".zip")) {
+      await execShell(`unzip '${dlName}' -d '${tmp}'`);
+      fs.copyFileSync(path.join(tmp, srcFile), dstFile);
+      fs.rmSync(tmp, { recursive: true });
+    } else {
+      await execShell(`tar xzf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
+    }
+  }
+
   /**
    * Install the package.
    */
@@ -126,11 +147,9 @@ export class Package {
 
     const binPath = path.join(binDir, binName);
 
-    await downloadAndExtract(
-      this.downloadUrl(),
+    await this.downloadAndExtract(
       `${this.packageName()}/${binName}`,
-      binPath,
-    );
+      binPath);
 
     // TODO: ccache provides minisig and sccache provides sha256 downloads,
     // maybe verify w/ that?
@@ -196,8 +215,8 @@ export class Package {
     let execFunc = needSudo ? execShellSudo : execShell
 
     try {
-      if (shouldUpdate) execFunc(`${updateCmd}`)
-      execFunc(`${installCmd} ${pkg}`)
+      if (shouldUpdate) await execFunc(`${updateCmd}`)
+      await execFunc(`${installCmd} ${pkg}`)
     } catch (error) {
       throw new Error(getPackageManagerError(error));
     }
@@ -470,23 +489,6 @@ async function execShellSudo(cmd: string) {
   // if no sudo is available we are probably in a docker container, and don't need it anyways
   if (await io.which("sudo")) await execShell("$(which sudo) " + cmd);
   else await execShell(cmd);
-}
-
-async function downloadAndExtract(url: string, srcFile: string, dstFile: string) {
-  const dstDir = path.dirname(dstFile);
-  if (!fs.existsSync(dstDir)) {
-    fs.mkdirSync(dstDir, { recursive: true });
-  }
-  if (url.endsWith(".zip")) {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), ""));
-    const zipName = path.join(tmp, "dl.zip");
-    await execShell(`curl -L '${url}' -o '${zipName}'`);
-    await execShell(`unzip '${zipName}' -d '${tmp}'`);
-    fs.copyFileSync(path.join(tmp, srcFile), dstFile);
-    fs.rmSync(tmp, { recursive: true });
-  } else {
-    await execShell(`curl -L '${url}' | tar xzf - -O --wildcards '${srcFile}' > '${dstFile}'`);
-  }
 }
 
 function checkSha256Sum(path: string, expectedSha256: string) {
