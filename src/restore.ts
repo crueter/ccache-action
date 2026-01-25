@@ -546,23 +546,18 @@ async function runInner(): Promise<void> {
   core.saveState("evictOldFiles", core.getInput("evict-old-files"));
   core.saveState("shouldSave", core.getBooleanInput("save"));
   core.saveState("appendTimestamp", core.getBooleanInput("append-timestamp"));
-  let ccachePath = await io.which(ccacheVariant);
 
-  // TODO: force install/methods/detect/etc
-  if (!ccachePath) {
-    core.startGroup(`Install ${ccacheVariant}`);
+  core.startGroup(`Install ${ccacheVariant}`);
 
-    const variant = selectVariant(ccacheVariant)
-    const pkg = selectPackage(variant)
-    const method = selectMethod(installMethod);
+  const variant = selectVariant(ccacheVariant)
+  const pkg = selectPackage(variant)
+  const method = selectMethod(installMethod);
 
-    core.info(`Installing with method ${method}`)
-    await pkg.install(method);
+  await pkg.install(method);
 
-    core.info(await io.which(ccacheVariant + ".exe"));
-    ccachePath = await io.which(ccacheVariant, true);
-    core.endGroup();
-  }
+  let ccachePath = await io.which(ccacheVariant, true);
+  core.info(`${ccacheVariant} installed at ${ccachePath}`)
+  core.endGroup();
 
   core.startGroup("Restore cache");
   await restore(ccacheVariant);

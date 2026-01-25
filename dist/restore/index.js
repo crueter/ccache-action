@@ -67891,19 +67891,14 @@ async function runInner() {
     lib_core.saveState("evictOldFiles", lib_core.getInput("evict-old-files"));
     lib_core.saveState("shouldSave", lib_core.getBooleanInput("save"));
     lib_core.saveState("appendTimestamp", lib_core.getBooleanInput("append-timestamp"));
-    let ccachePath = await io.which(ccacheVariant);
-    // TODO: force install/methods/detect/etc
-    if (!ccachePath) {
-        lib_core.startGroup(`Install ${ccacheVariant}`);
-        const variant = selectVariant(ccacheVariant);
-        const pkg = selectPackage(variant);
-        const method = selectMethod(installMethod);
-        lib_core.info(`Installing with method ${method}`);
-        await pkg.install(method);
-        lib_core.info(await io.which(ccacheVariant + ".exe"));
-        ccachePath = await io.which(ccacheVariant, true);
-        lib_core.endGroup();
-    }
+    lib_core.startGroup(`Install ${ccacheVariant}`);
+    const variant = selectVariant(ccacheVariant);
+    const pkg = selectPackage(variant);
+    const method = selectMethod(installMethod);
+    await pkg.install(method);
+    let ccachePath = await io.which(ccacheVariant, true);
+    lib_core.info(`${ccacheVariant} installed at ${ccachePath}`);
+    lib_core.endGroup();
     lib_core.startGroup("Restore cache");
     await restore(ccacheVariant);
     lib_core.endGroup();
