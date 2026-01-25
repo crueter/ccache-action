@@ -25,6 +25,13 @@ export enum PLATFORM {
   DARWIN = "darwin",
 }
 
+export enum INSTALL_METHOD {
+  YES = "yes",
+  BINARY = "binary",
+  DETECT = "detect",
+  NO = "no"
+}
+
 export class Package {
   constructor(
     public readonly variant: VARIANT,
@@ -175,7 +182,6 @@ export class Package {
     // some distros don't have sccache
     let hasSccache = true
 
-    // TODO is the fallback to basic install always a good idea?
     switch (this.platform) {
       case PLATFORM.DARWIN:
         updateCmd = "brew update"
@@ -200,8 +206,8 @@ export class Package {
         } else if (await io.which("pacman")) {
           // arch frequently upgrades glibc and such
           // partial updates will break things if you don't pass -u!
-          updateCmd = "pacman -Syu"
-          installCmd = "pacman -S"
+          updateCmd = "pacman -Syu --noconfirm --needed"
+          installCmd = "pacman -S --noconfirm --needed"
         }
         break
       case PLATFORM.WINDOWS:
@@ -224,12 +230,29 @@ export class Package {
     return Boolean(await io.which(pkg))
   }
 
-  async install(): Promise<void> {
+  async installAuto(): Promise<void> {
     if (!await this.installPackageManager()) {
       await this.installBinary()
     }
+  }
 
-    if (!io.which(this.variant)) {
+  async install(method: INSTALL_METHOD): Promise<void> {
+    switch (method) {
+      case INSTALL_METHOD.YES:
+        await this.installAuto()
+        break
+      case INSTALL_METHOD.BINARY:
+        await this.installBinary()
+        break
+      case INSTALL_METHOD.DETECT:
+        if (!await io.which(this.variant)) await this.installAuto()
+        break
+      case INSTALL_METHOD.NO:
+      default:
+        break
+    }
+
+    if (!await io.which(this.variant)) {
       throw new Error(`Unable to install ${this.variant}. Check prior logs and file a bug report.`)
     }
   }
@@ -281,6 +304,16 @@ export function selectPackage(variant: VARIANT): Package {
   else throw new Error(
     `Unsupported package combination: platform=${platform}, arch=${archKey}, variant=${variant}`,
   )
+}
+
+export function selectMethod(method: string): INSTALL_METHOD {
+  switch (method) {
+    case "yes": return INSTALL_METHOD.YES
+    case "binary": return INSTALL_METHOD.BINARY
+    case "detect": return INSTALL_METHOD.DETECT
+    case "no": return INSTALL_METHOD.NO
+    default: throw new Error(`Unsupported installation method ${method}.`)
+  }
 }
 
 export function selectVariant(variant: string): VARIANT {
@@ -502,6 +535,7 @@ function checkSha256Sum(path: string, expectedSha256: string) {
 
 async function runInner(): Promise<void> {
   const ccacheVariant = core.getInput("variant");
+  const installMethod = core.getInput("install");
   core.saveState("startTimestamp", Date.now());
   core.saveState("ccacheVariant", ccacheVariant);
   core.saveState("evictOldFiles", core.getInput("evict-old-files"));
@@ -515,7 +549,8 @@ async function runInner(): Promise<void> {
 
     const variant = selectVariant(ccacheVariant)
     const pkg = selectPackage(variant)
-    await pkg.install();
+    const method = selectMethod(installMethod);
+    await pkg.install(method);
 
     core.info(await io.which(ccacheVariant + ".exe"));
     ccachePath = await io.which(ccacheVariant, true);

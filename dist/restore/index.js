@@ -67372,12 +67372,14 @@ __nccwpck_require__.r(__webpack_exports__);
 __nccwpck_require__.d(__webpack_exports__, {
   ARCH: () => (/* binding */ ARCH),
   DARWIN: () => (/* binding */ DARWIN),
+  INSTALL_METHOD: () => (/* binding */ INSTALL_METHOD),
   LINUX: () => (/* binding */ LINUX),
   PLATFORM: () => (/* binding */ PLATFORM),
   Package: () => (/* binding */ Package),
   VARIANT: () => (/* binding */ VARIANT),
   WINDOWS: () => (/* binding */ WINDOWS),
   "default": () => (/* binding */ src_restore),
+  selectMethod: () => (/* binding */ selectMethod),
   selectPackage: () => (/* binding */ selectPackage),
   selectVariant: () => (/* binding */ selectVariant)
 });
@@ -67498,6 +67500,13 @@ var PLATFORM;
     PLATFORM["WINDOWS"] = "windows";
     PLATFORM["DARWIN"] = "darwin";
 })(PLATFORM || (PLATFORM = {}));
+var INSTALL_METHOD;
+(function (INSTALL_METHOD) {
+    INSTALL_METHOD["YES"] = "yes";
+    INSTALL_METHOD["BINARY"] = "binary";
+    INSTALL_METHOD["DETECT"] = "detect";
+    INSTALL_METHOD["NO"] = "no";
+})(INSTALL_METHOD || (INSTALL_METHOD = {}));
 class Package {
     constructor(variant, arch, platform, sha256, version) {
         this.variant = variant;
@@ -67617,7 +67626,6 @@ class Package {
         let needSudo = false;
         // some distros don't have sccache
         let hasSccache = true;
-        // TODO is the fallback to basic install always a good idea?
         switch (this.platform) {
             case PLATFORM.DARWIN:
                 updateCmd = "brew update";
@@ -67644,8 +67652,8 @@ class Package {
                 else if (await io.which("pacman")) {
                     // arch frequently upgrades glibc and such
                     // partial updates will break things if you don't pass -u!
-                    updateCmd = "pacman -Syu";
-                    installCmd = "pacman -S";
+                    updateCmd = "pacman -Syu --noconfirm --needed";
+                    installCmd = "pacman -S --noconfirm --needed";
                 }
                 break;
             case PLATFORM.WINDOWS:
@@ -67666,11 +67674,28 @@ class Package {
         }
         return Boolean(await io.which(pkg));
     }
-    async install() {
+    async installAuto() {
         if (!await this.installPackageManager()) {
             await this.installBinary();
         }
-        if (!io.which(this.variant)) {
+    }
+    async install(method) {
+        switch (method) {
+            case INSTALL_METHOD.YES:
+                await this.installAuto();
+                break;
+            case INSTALL_METHOD.BINARY:
+                await this.installBinary();
+                break;
+            case INSTALL_METHOD.DETECT:
+                if (!await io.which(this.variant))
+                    await this.installAuto();
+                break;
+            case INSTALL_METHOD.NO:
+            default:
+                break;
+        }
+        if (!await io.which(this.variant)) {
             throw new Error(`Unable to install ${this.variant}. Check prior logs and file a bug report.`);
         }
     }
@@ -67717,6 +67742,15 @@ function selectPackage(variant) {
         return entry[variant];
     else
         throw new Error(`Unsupported package combination: platform=${platform}, arch=${archKey}, variant=${variant}`);
+}
+function selectMethod(method) {
+    switch (method) {
+        case "yes": return INSTALL_METHOD.YES;
+        case "binary": return INSTALL_METHOD.BINARY;
+        case "detect": return INSTALL_METHOD.DETECT;
+        case "no": return INSTALL_METHOD.NO;
+        default: throw new Error(`Unsupported installation method ${method}.`);
+    }
 }
 function selectVariant(variant) {
     switch (variant) {
@@ -67847,6 +67881,7 @@ function checkSha256Sum(path, expectedSha256) {
 }
 async function runInner() {
     const ccacheVariant = lib_core.getInput("variant");
+    const installMethod = lib_core.getInput("install");
     lib_core.saveState("startTimestamp", Date.now());
     lib_core.saveState("ccacheVariant", ccacheVariant);
     lib_core.saveState("evictOldFiles", lib_core.getInput("evict-old-files"));
@@ -67858,7 +67893,8 @@ async function runInner() {
         lib_core.startGroup(`Install ${ccacheVariant}`);
         const variant = selectVariant(ccacheVariant);
         const pkg = selectPackage(variant);
-        await pkg.install();
+        const method = selectMethod(installMethod);
+        await pkg.install(method);
         lib_core.info(await io.which(ccacheVariant + ".exe"));
         ccachePath = await io.which(ccacheVariant, true);
         lib_core.endGroup();
