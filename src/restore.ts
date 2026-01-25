@@ -134,8 +134,10 @@ export class Package {
       fs.rmSync(tmp, { recursive: true })
     } else {
       // windows is a little special :)
-      if (this.platform === PLATFORM.WINDOWS)
-        await execShell(`tar xf "$(cygpath -u ${dlName})" -O '${srcFile}' > '${dstFile}'`)
+      if (this.platform === PLATFORM.WINDOWS) {
+        const winName = dlName.replace('\\', '/')
+        await execShell(`tar xf "$(cygpath -u ${winName})" -O '${srcFile}' > '${dstFile}'`)
+      }
       else
         await execShell(`tar xf '${dlName}' -O '${srcFile}' > '${dstFile}'`)
     }
