@@ -67594,7 +67594,7 @@ class Package {
         else {
             // windows is a little special :)
             if (this.platform === PLATFORM.WINDOWS)
-                await execShell(`tar xf "$(cygpath -u ${dlName})' -O '${srcFile}' > '${dstFile}'`);
+                await execShell(`tar xf "$(cygpath -u ${dlName})" -O '${srcFile}' > '${dstFile}'`);
             else
                 await execShell(`tar xf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
         }
