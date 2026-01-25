@@ -103,7 +103,10 @@ export class Package {
         ? "ccache/ccache"
         : "mozilla/sccache";
 
-    return `https://github.com/${repo}/releases/download/${this.version}/${artifact}`;
+    // ccache is a little special sometimes :)
+    const version = this.variant === VARIANT.CCACHE ? "v${this.version}" : "${this.version}"
+
+    return `https://github.com/${repo}/releases/download/${version}/${artifact}`;
   }
 
   /**
@@ -280,7 +283,7 @@ export const LINUX = {
       ARCH.X86_64,
       PLATFORM.LINUX,
       "sha256",
-      "v4.12.2",
+      "4.12.2",
     ),
     sccache: new Package(
       VARIANT.SCCACHE,
@@ -297,7 +300,7 @@ export const LINUX = {
       ARCH.AARCH64,
       PLATFORM.LINUX,
       "sha256",
-      "v4.12.2",
+      "4.12.2",
     ),
     sccache: new Package(
       VARIANT.SCCACHE,
@@ -317,7 +320,7 @@ export const WINDOWS = {
       ARCH.X86_64,
       PLATFORM.WINDOWS,
       "bd73f405e3e80c7f0081ee75dbf9ee44dee64ecfbc3d4316e9a4ede4832f2e41",
-      "v4.12.2",
+      "4.12.2",
     ),
     sccache: new Package(
       VARIANT.SCCACHE,
@@ -334,7 +337,7 @@ export const WINDOWS = {
       ARCH.AARCH64,
       PLATFORM.WINDOWS,
       "9881a3acf40a5b22eff1c1650b335bd7cf56cf66a6c05cb7d0f53f19b43054f8",
-      "v4.12.2",
+      "4.12.2",
     ),
     sccache: new Package(
       VARIANT.SCCACHE,
@@ -354,7 +357,7 @@ export const DARWIN = {
       ARCH.X86_64,
       PLATFORM.DARWIN,
       "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047",
-      "v4.12.2",
+      "4.12.2",
     ),
     sccache: new Package(
       VARIANT.SCCACHE,
@@ -371,7 +374,7 @@ export const DARWIN = {
       ARCH.AARCH64,
       PLATFORM.DARWIN,
       "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047",
-      "v4.12.2",
+      "4.12.2",
     ),
     sccache: new Package(
       VARIANT.SCCACHE,
