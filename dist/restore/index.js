@@ -67592,7 +67592,7 @@ class Package {
             external_fs_default().rmSync(tmp, { recursive: true });
         }
         else {
-            await execShell(`tar xzf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
+            await execShell(`tar xf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
         }
     }
     /**
@@ -67600,9 +67600,13 @@ class Package {
      */
     async installBinary() {
         const isWindows = this.platform === PLATFORM.WINDOWS;
+        // TODO: evaluate
         const binDir = this.platform === PLATFORM.WINDOWS
             ? external_path_default().join(external_process_namespaceObject.env.USERPROFILE, ".cargo", "bin")
             : "/usr/local/bin";
+        // Also prepend install path to PATH var
+        // To prevent pre-existing install potentially clobbering this one
+        lib_core.addPath(binDir);
         const binName = isWindows
             ? `${this.variant}.exe`
             : this.variant;

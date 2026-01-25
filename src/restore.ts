@@ -143,10 +143,15 @@ export class Package {
   async installBinary(): Promise<void> {
     const isWindows = this.platform === PLATFORM.WINDOWS;
 
+    // TODO: evaluate
     const binDir =
       this.platform === PLATFORM.WINDOWS
         ? path.join(process.env.USERPROFILE!, ".cargo", "bin")
         : "/usr/local/bin";
+
+    // Also prepend install path to PATH var
+    // To prevent pre-existing install potentially clobbering this one
+    core.addPath(binDir);
 
     const binName = isWindows
       ? `${this.variant}.exe`
