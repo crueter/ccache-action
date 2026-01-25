@@ -67583,7 +67583,7 @@ class Package {
             external_fs_default().mkdirSync(dstDir, { recursive: true });
         }
         const url = this.downloadUrl();
-        const tmp = external_fs_default().mkdtempSync(external_path_default().join(external_os_default().tmpdir(), ""));
+        const tmp = external_fs_default().mkdtempSync(external_path_default().join(external_os_default().tmpdir(), "ccache"));
         const dlName = external_path_default().join(tmp, this.downloadName());
         await execShell(`curl -L '${url}' -o '${dlName}'`);
         if (url.endsWith(".zip")) {

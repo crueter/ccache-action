@@ -124,7 +124,7 @@ export class Package {
 
     const url = this.downloadUrl();
 
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), ""));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ccache"));
     const dlName = path.join(tmp, this.downloadName())
     await execShell(`curl -L '${url}' -o '${dlName}'`);
 
