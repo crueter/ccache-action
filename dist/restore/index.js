@@ -67564,7 +67564,9 @@ class Package {
         const repo = this.variant === VARIANT.CCACHE
             ? "ccache/ccache"
             : "mozilla/sccache";
-        return `https://github.com/${repo}/releases/download/${this.version}/${artifact}`;
+        // ccache is a little special sometimes :)
+        const version = this.variant === VARIANT.CCACHE ? `v${this.version}` : `${this.version}`;
+        return `https://github.com/${repo}/releases/download/${version}/${artifact}`;
     }
     /**
      * Install the package.
@@ -67710,33 +67712,33 @@ function selectVariant(variant) {
 // Linux //
 const LINUX = {
     x64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.LINUX, "sha256", "v4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.LINUX, "sha256", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.LINUX, "e381a9675f971082a522907b8381c1054777ea60511043e4c67de5dfddff3029", "v0.12.0"),
     },
     aarch64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.LINUX, "sha256", "v4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.LINUX, "sha256", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.LINUX, "2f9a8af7cea98e848f92e865a6d5062cfb8c91feeef17417cdd43276b4c7d8af", "v0.12.0"),
     },
 };
 // Windows //
 const WINDOWS = {
     x64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.WINDOWS, "bd73f405e3e80c7f0081ee75dbf9ee44dee64ecfbc3d4316e9a4ede4832f2e41", "v4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.WINDOWS, "bd73f405e3e80c7f0081ee75dbf9ee44dee64ecfbc3d4316e9a4ede4832f2e41", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.WINDOWS, "b0236d379a66b22f6bc9e944adb5b354163015315c3a2aaf7803ce2add758fcd", "v0.12.0"),
     },
     aarch64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.WINDOWS, "9881a3acf40a5b22eff1c1650b335bd7cf56cf66a6c05cb7d0f53f19b43054f8", "v4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.WINDOWS, "9881a3acf40a5b22eff1c1650b335bd7cf56cf66a6c05cb7d0f53f19b43054f8", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.WINDOWS, "0254597932dcc4fa85f67ac149be29941b96a19f8b1bb0bf71b24640641ab987", "v0.12.0"),
     },
 };
 // macOS //
 const DARWIN = {
     x64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.DARWIN, "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047", "v4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.DARWIN, "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.DARWIN, "dc4b8d99d1aab20d1a2274642444c0bdc3e4a5fb4c6b63c58ff134eea81ccc15", "v0.12.0"),
     },
     aarch64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.DARWIN, "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047", "v4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.DARWIN, "3a3429dfd19c206b084204c35667005f0b91cb5716e79cfe7efe796be61a4047", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.DARWIN, "0a7e14583e7e136c5b2253990e7ce66668c453a845c710b18873e7205ed8c098", "v0.12.0"),
     },
 };

@@ -104,7 +104,7 @@ export class Package {
         : "mozilla/sccache";
 
     // ccache is a little special sometimes :)
-    const version = this.variant === VARIANT.CCACHE ? "v${this.version}" : "${this.version}"
+    const version = this.variant === VARIANT.CCACHE ? `v${this.version}` : `${this.version}`
 
     return `https://github.com/${repo}/releases/download/${version}/${artifact}`;
   }
