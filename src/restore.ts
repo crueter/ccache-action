@@ -339,7 +339,7 @@ export const LINUX = {
       VARIANT.CCACHE,
       ARCH.X86_64,
       PLATFORM.LINUX,
-      "sha256",
+      "4fdc966c46448960f3f9d85cf4430d818c1f4b4618ba0b745d000a396d6bc041",
       "4.12.2",
     ),
     sccache: new Package(
@@ -356,7 +356,7 @@ export const LINUX = {
       VARIANT.CCACHE,
       ARCH.AARCH64,
       PLATFORM.LINUX,
-      "sha256",
+      "65ccce8cc26ebb1127207fc55cd96443df56a2d6d74bd84f439db2c91c637d06",
       "4.12.2",
     ),
     sccache: new Package(

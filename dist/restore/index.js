@@ -67768,11 +67768,11 @@ function selectVariant(variant) {
 // Linux //
 const LINUX = {
     x64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.LINUX, "sha256", "4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.X86_64, PLATFORM.LINUX, "4fdc966c46448960f3f9d85cf4430d818c1f4b4618ba0b745d000a396d6bc041", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.X86_64, PLATFORM.LINUX, "e381a9675f971082a522907b8381c1054777ea60511043e4c67de5dfddff3029", "v0.12.0"),
     },
     aarch64: {
-        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.LINUX, "sha256", "4.12.2"),
+        ccache: new Package(VARIANT.CCACHE, ARCH.AARCH64, PLATFORM.LINUX, "65ccce8cc26ebb1127207fc55cd96443df56a2d6d74bd84f439db2c91c637d06", "4.12.2"),
         sccache: new Package(VARIANT.SCCACHE, ARCH.AARCH64, PLATFORM.LINUX, "2f9a8af7cea98e848f92e865a6d5062cfb8c91feeef17417cdd43276b4c7d8af", "v0.12.0"),
     },
 };
