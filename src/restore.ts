@@ -133,7 +133,7 @@ export class Package {
       fs.copyFileSync(path.join(tmp, srcFile), dstFile);
       fs.rmSync(tmp, { recursive: true });
     } else {
-      await execShell(`tar xzf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
+      await execShell(`tar xf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
     }
   }
 
