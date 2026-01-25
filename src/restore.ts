@@ -126,14 +126,18 @@ export class Package {
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ccache"));
     const dlName = path.join(tmp, this.downloadName())
-    await execShell(`curl -L '${url}' -o '${dlName}'`);
+    await execShell(`curl -L '${url}' -o '${dlName}'`)
 
     if (url.endsWith(".zip")) {
-      await execShell(`unzip '${dlName}' -d '${tmp}'`);
-      fs.copyFileSync(path.join(tmp, srcFile), dstFile);
-      fs.rmSync(tmp, { recursive: true });
+      await execShell(`unzip '${dlName}' -d '${tmp}'`)
+      fs.copyFileSync(path.join(tmp, srcFile), dstFile)
+      fs.rmSync(tmp, { recursive: true })
     } else {
-      await execShell(`tar xf '${dlName}' -O '${srcFile}' > '${dstFile}'`);
+      // windows is a little special :)
+      if (this.platform === PLATFORM.WINDOWS)
+        await execShell(`tar xf "$(cygpath -u ${dlName})' -O '${srcFile}' > '${dstFile}'`)
+      else
+        await execShell(`tar xf '${dlName}' -O '${srcFile}' > '${dstFile}'`)
     }
   }
 
